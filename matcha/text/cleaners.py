@@ -17,6 +17,18 @@ import re
 import phonemizer
 from unidecode import unidecode
 
+# espeak-ng is a system dependency and cannot always be installed (e.g. on a compute cluster
+# without root). When the optional `espeakng-loader` package is available, point phonemizer at the
+# espeak-ng library and data that it ships as a wheel; otherwise use the system installation.
+try:
+    import espeakng_loader
+    from phonemizer.backend.espeak.wrapper import EspeakWrapper
+
+    EspeakWrapper.set_library(espeakng_loader.get_library_path())
+    EspeakWrapper.set_data_path(espeakng_loader.get_data_path())
+except ImportError:
+    pass
+
 # To avoid excessive logging we set the log level of the phonemizer package to Critical
 critical_logger = logging.getLogger("phonemizer")
 critical_logger.setLevel(logging.CRITICAL)

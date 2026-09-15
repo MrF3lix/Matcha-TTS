@@ -62,6 +62,8 @@ dependencies = [
 # --------- optional loggers --------- #
 # Install with e.g. `uv sync --extra wandb` or `pip install matcha-tts[wandb]`
 [project.optional-dependencies]
+# espeak-ng shipped as a wheel, for machines where it cannot be installed system-wide
+espeak = ["espeakng-loader"]
 wandb = ["wandb"]
 neptune = ["neptune-client"]
 mlflow = ["mlflow"]
