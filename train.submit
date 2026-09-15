@@ -4,8 +4,8 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=20
 #SBATCH --nodes=1
-#SBATCH --partition=gpu
-#SBATCH --mem=40G
+#SBATCH --partition=gpu_top
+#SBATCH --mem=20G
 #SBATCH --gres=gpu:1
 #SBATCH --account=cai_nlp
 #SBATCH --mail-user=saaf@zhaw.ch
@@ -13,6 +13,6 @@
 #SBATCH --error=/cluster/home/saaf/PHD/Matcha-TTS/logs/%j_%N.err
 #SBATCH --signal=B:SIGUSR1@60
 
-uv sync
+uv sync --frozen --extra wandb
 
-python matcha/train.py experiment=ljspeech trainer.max_steps=100 trainer=gpu
+python matcha/train.py experiment=ljspeech trainer.max_steps=5 trainer=gpud

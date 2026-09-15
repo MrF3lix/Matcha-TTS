@@ -1,5 +1,11 @@
 [build-system]
-requires = ["setuptools>=64", "wheel", "cython>=3.0.0", "numpy>=2.0.0", "packaging"]
+requires = [
+  "setuptools>=64",
+  "wheel",
+  "cython>=3.0.0",
+  "numpy>=2.0.0",
+  "packaging",
+]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -17,7 +23,10 @@ dependencies = [
   # --------- pytorch --------- #
   "torch>=2.0.0",
   "torchvision>=0.15.0",
-  "torchaudio",
+  # torchaudio ships no dependency metadata at all, so the resolver will happily pick a release
+  # built against a newer torch and the extension fails to load ("Symbol not found:
+  # _torch_library_impl"). Keep it in the same release series as torch, which torchvision pins.
+  "torchaudio>=2.0.0,<2.9",
   "lightning>=2.0.0",
   "torchmetrics>=0.11.4",
   # --------- hydra --------- #
@@ -25,11 +34,11 @@ dependencies = [
   "hydra-colorlog==1.2.0",
   "hydra-optuna-sweeper==1.2.0",
   # --------- others --------- #
-  "rootutils",       # standardizing the project root setup
-  "pre-commit",      # hooks for applying linters on commit
-  "rich",            # beautiful text formatting in terminal
-  "pytest",          # tests
-  "phonemizer",      # phonemization of text
+  "rootutils",        # standardizing the project root setup
+  "pre-commit",       # hooks for applying linters on commit
+  "rich",             # beautiful text formatting in terminal
+  "pytest",           # tests
+  "phonemizer",       # phonemization of text
   "tensorboard",
   "librosa",
   "Cython",
@@ -41,7 +50,7 @@ dependencies = [
   "matplotlib",
   "pandas",
   "conformer==0.3.2",
-  "diffusers",       # developed using version ==0.25.0
+  "diffusers",        # developed using version ==0.25.0
   "notebook",
   "ipywidgets",
   "gradio==3.43.2",
@@ -57,7 +66,9 @@ wandb = ["wandb"]
 neptune = ["neptune-client"]
 mlflow = ["mlflow"]
 comet = ["comet-ml"]
-aim = ["aim>=3.16.2"] # no lower than 3.16.2, see https://github.com/aimhubio/aim/issues/2550
+aim = [
+  "aim>=3.16.2",
+] # no lower than 3.16.2, see https://github.com/aimhubio/aim/issues/2550
 
 [project.urls]
 Homepage = "https://shivammehta25.github.io/Matcha-TTS"
@@ -108,21 +119,16 @@ addopts = [
   "--strict-markers",
   "--doctest-modules",
 ]
-filterwarnings = [
-  "ignore::DeprecationWarning",
-  "ignore::UserWarning",
-]
+filterwarnings = ["ignore::DeprecationWarning", "ignore::UserWarning"]
 log_cli = "True"
-markers = [
-  "slow: slow tests",
-]
+markers = ["slow: slow tests"]
 minversion = "6.0"
 testpaths = "tests/"
 
 [tool.coverage.report]
 exclude_lines = [
-    "pragma: nocover",
-    "raise NotImplementedError",
-    "raise NotImplementedError()",
-    "if __name__ == .__main__.:",
+  "pragma: nocover",
+  "raise NotImplementedError",
+  "raise NotImplementedError()",
+  "if __name__ == .__main__.:",
 ]
