@@ -136,9 +136,11 @@ def intersperse(lst, item):
 
 
 def save_figure_to_numpy(fig):
-    data = np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8, sep="")
-    data = data.reshape(fig.canvas.get_width_height()[::-1] + (3,))
-    return data
+    # Read the rendered buffer instead of `get_width_height()`, which reports the figure size in
+    # logical pixels: on a HiDPI display the canvas is rendered at a higher resolution and the
+    # two disagree. `buffer_rgba` also replaces `tostring_rgb`, removed in matplotlib 3.10.
+    data = np.asarray(fig.canvas.buffer_rgba())
+    return data[..., :3].copy()
 
 
 def plot_tensor(tensor):
