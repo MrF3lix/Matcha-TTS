@@ -15,4 +15,4 @@
 
 uv sync --frozen --extra wandb
 
-python matcha/train.py experiment=ljspeech trainer.max_steps=5 trainer=gpud
+python matcha/train.py experiment=ljspeech trainer.max_steps=5 trainer=gpu
