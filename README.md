@@ -38,6 +38,37 @@ You can also [try 🍵 Matcha-TTS in your browser on HuggingFace 🤗 spaces](ht
 
 ## Installation
 
+Matcha-TTS uses [espeak-ng](https://github.com/espeak-ng/espeak-ng) for phonemisation, so install it first:
+
+```bash
+# Ubuntu / Debian
+sudo apt-get install espeak-ng
+# macOS
+brew install espeak-ng
+```
+
+### With [uv](https://docs.astral.sh/uv/) (recommended)
+
+`uv` creates the virtual environment, installs the matching Python version and resolves
+the dependencies for you, so nothing else has to be set up beforehand.
+
+```bash
+# use it as a library / CLI
+uv tool install matcha-tts
+
+# or work on it from source
+git clone https://github.com/shivammehta25/Matcha-TTS.git
+cd Matcha-TTS
+uv sync
+```
+
+`uv sync` installs Matcha-TTS in editable mode into `.venv`, using the Python version
+pinned in `.python-version`. Prefix commands with `uv run` to use that environment, e.g.
+`uv run matcha-tts --text "<INPUT TEXT>"`, or activate it with `source .venv/bin/activate`.
+To add an experiment logger, sync with the matching extra, e.g. `uv sync --extra wandb`.
+
+### With conda / pip
+
 1. Create an environment (suggested but optional)
 
 ```
@@ -73,6 +104,23 @@ matcha-tts-app
 ```
 
 or open `synthesis.ipynb` on jupyter notebook
+
+### Loading checkpoints with PyTorch >= 2.6
+
+PyTorch 2.6 changed the default of `torch.load` to `weights_only=True`, which refuses to
+unpickle the OmegaConf config and the training state that Lightning stores inside a
+checkpoint. Matcha allow-lists exactly those classes
+(see [`matcha/utils/serialization.py`](matcha/utils/serialization.py)), so the official
+checkpoints and anything trained with this repository load without turning the protection off.
+
+If your own checkpoint contains something else, loading it fails with
+`UnpicklingError: Weights only load failed [...] Unsupported global: <some class>`. Either add
+that class to `register_safe_globals()`, or - if you trust the source of the checkpoint - load
+it with the restriction disabled:
+
+```bash
+MATCHA_UNSAFE_CHECKPOINT_LOAD=1 matcha-tts --text "<INPUT TEXT>"
+```
 
 ### CLI Arguments
 

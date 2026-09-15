@@ -7,6 +7,8 @@ import matplotlib
 import torch
 from torch.nn.utils import weight_norm
 
+from matcha.utils.serialization import load_checkpoint as matcha_load_checkpoint
+
 matplotlib.use("Agg")
 import matplotlib.pylab as plt
 
@@ -41,7 +43,7 @@ def get_padding(kernel_size, dilation=1):
 def load_checkpoint(filepath, device):
     assert os.path.isfile(filepath)
     print(f"Loading '{filepath}'")
-    checkpoint_dict = torch.load(filepath, map_location=device)
+    checkpoint_dict = matcha_load_checkpoint(filepath, map_location=device)
     print("Complete.")
     return checkpoint_dict
 

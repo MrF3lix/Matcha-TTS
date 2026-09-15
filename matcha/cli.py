@@ -15,6 +15,7 @@ from matcha.hifigan.env import AttrDict
 from matcha.hifigan.models import Generator as HiFiGAN
 from matcha.models.matcha_tts import MatchaTTS
 from matcha.text import sequence_to_text, text_to_sequence
+from matcha.utils.serialization import checkpoint_loading, load_checkpoint
 from matcha.utils.utils import assert_model_downloaded, get_user_data_dir, intersperse
 
 MATCHA_URLS = {
@@ -84,7 +85,7 @@ def assert_required_models_available(args):
 def load_hifigan(checkpoint_path, device):
     h = AttrDict(v1)
     hifigan = HiFiGAN(h).to(device)
-    hifigan.load_state_dict(torch.load(checkpoint_path, map_location=device)["generator"])
+    hifigan.load_state_dict(load_checkpoint(checkpoint_path, map_location=device)["generator"])
     _ = hifigan.eval()
     hifigan.remove_weight_norm()
     return hifigan
@@ -107,7 +108,8 @@ def load_vocoder(vocoder_name, checkpoint_path, device):
 
 def load_matcha(model_name, checkpoint_path, device):
     print(f"[!] Loading {model_name}!")
-    model = MatchaTTS.load_from_checkpoint(checkpoint_path, map_location=device)
+    with checkpoint_loading(checkpoint_path):
+        model = MatchaTTS.load_from_checkpoint(checkpoint_path, map_location=device)
     _ = model.eval()
 
     print(f"[+] {model_name} loaded!")

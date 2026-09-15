@@ -81,8 +81,14 @@ target/
 profile_default/
 ipython_config.py
 
-# pyenv
-.python-version
+# pyenv / uv
+#   .python-version is tracked on purpose: it pins the interpreter used by
+#   `uv sync` / `uv run` (and pyenv) to the version this project is tested with.
+# .python-version
+
+# uv
+#   Matcha-TTS is distributed as a library, so the lockfile is not committed.
+uv.lock
 
 # pipenv
 #   According to pypa/pipenv#598, it is recommended to include Pipfile.lock in version control.

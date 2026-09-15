@@ -1,5 +1,82 @@
 [build-system]
-requires = ["setuptools", "wheel", "cython==0.29.35", "numpy==1.24.3", "packaging"]
+requires = ["setuptools>=64", "wheel", "cython>=3.0.0", "numpy>=2.0.0", "packaging"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "matcha-tts"
+dynamic = ["version"]
+description = "🍵 Matcha-TTS: A fast TTS architecture with conditional flow matching"
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [{ name = "Shivam Mehta", email = "shivam.mehta25@gmail.com" }]
+classifiers = [
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+]
+dependencies = [
+  # --------- pytorch --------- #
+  "torch>=2.0.0",
+  "torchvision>=0.15.0",
+  "torchaudio",
+  "lightning>=2.0.0",
+  "torchmetrics>=0.11.4",
+  # --------- hydra --------- #
+  "hydra-core==1.3.2",
+  "hydra-colorlog==1.2.0",
+  "hydra-optuna-sweeper==1.2.0",
+  # --------- others --------- #
+  "rootutils",       # standardizing the project root setup
+  "pre-commit",      # hooks for applying linters on commit
+  "rich",            # beautiful text formatting in terminal
+  "pytest",          # tests
+  "phonemizer",      # phonemization of text
+  "tensorboard",
+  "librosa",
+  "Cython",
+  "numpy",
+  "einops",
+  "inflect",
+  "Unidecode",
+  "scipy",
+  "matplotlib",
+  "pandas",
+  "conformer==0.3.2",
+  "diffusers",       # developed using version ==0.25.0
+  "notebook",
+  "ipywidgets",
+  "gradio==3.43.2",
+  "gdown",
+  "wget",
+  "seaborn",
+]
+
+# --------- optional loggers --------- #
+# Install with e.g. `uv sync --extra wandb` or `pip install matcha-tts[wandb]`
+[project.optional-dependencies]
+wandb = ["wandb"]
+neptune = ["neptune-client"]
+mlflow = ["mlflow"]
+comet = ["comet-ml"]
+aim = ["aim>=3.16.2"] # no lower than 3.16.2, see https://github.com/aimhubio/aim/issues/2550
+
+[project.urls]
+Homepage = "https://shivammehta25.github.io/Matcha-TTS"
+Repository = "https://github.com/shivammehta25/Matcha-TTS"
+
+[project.scripts]
+matcha-data-stats = "matcha.utils.generate_data_statistics:main"
+matcha-tts = "matcha.cli:cli"
+matcha-tts-app = "matcha.app:main"
+matcha-tts-get-durations = "matcha.utils.get_durations_from_trained_model:main"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.dynamic]
+version = { file = "matcha/VERSION" }
+
+[tool.setuptools.packages.find]
+exclude = ["tests", "tests.*", "examples", "examples.*"]
 
 [tool.black]
 line-length = 120
