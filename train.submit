@@ -17,6 +17,6 @@ export UV_PROJECT_ENVIRONEMENT='/raid/persistent_scratch/saaf/venvs/phd'
 export UV_LINK_MODE=copy
 
 uv lock
-uv sync --frozen --extra wandb espeak
+uv sync --frozen --extra wandb --extra espeak
 
 uv run matcha/train.py experiment=ljspeech +trainer.max_steps=5 trainer=gpu
