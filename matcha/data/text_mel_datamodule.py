@@ -1,4 +1,5 @@
 import random
+import warnings
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -12,6 +13,12 @@ from matcha.text import text_to_sequence
 from matcha.utils.audio import mel_spectrogram
 from matcha.utils.model import fix_len_compatibility, normalize
 from matcha.utils.utils import intersperse
+
+# torchaudio 2.8 warns on every `ta.load()` call that 2.9 will route it through TorchCodec. The
+# dependency pin in pyproject.toml keeps us on 2.8, where the current behaviour still holds, and
+# dataloader workers are re-created every epoch, so the warning is otherwise printed by every
+# worker in every epoch.
+warnings.filterwarnings("ignore", message=".*load_with_torchcodec.*", category=UserWarning)
 
 
 def parse_filelist(filelist_path, split_char="|"):
