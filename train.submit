@@ -19,4 +19,4 @@ export UV_LINK_MODE=copy
 uv lock
 uv sync --frozen --extra wandb --extra espeak
 
-uv run matcha/train.py experiment=ljspeech +trainer.max_steps=50000 trainer.devices=2 trainer=gpu logger=wandb test=False
+uv run matcha/train.py experiment=ljspeech +trainer.max_steps=50000 trainer.devices=[0,1] trainer=gpu logger=wandb test=False
