@@ -2,7 +2,8 @@
 #SBATCH --time=1440
 #SBATCH --job-name=SynthDiaSG_Matcha_TTS
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=20
+#SBATCH --ntasks-per-node=2
+#SBATCH --cpus-per-task=10
 #SBATCH --nodes=1
 #SBATCH --partition=gpu
 #SBATCH --mem=20G
@@ -19,4 +20,4 @@ export UV_LINK_MODE=copy
 uv lock
 uv sync --frozen --extra wandb --extra espeak
 
-uv run matcha/train.py experiment=ljspeech +trainer.max_steps=50000 trainer.devices=[0,1] trainer=gpu logger=wandb test=False
+uv run matcha/train.py experiment=ljspeech +trainer.max_steps=50000 trainer.devices=2 trainer=gpu logger=wandb test=False
