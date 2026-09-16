@@ -8,6 +8,21 @@ from matcha.utils import pylogger
 log = pylogger.get_pylogger(__name__)
 
 
+def log_image(logger, key, image, step):
+    """Log a single HWC image, whichever logger is configured.
+
+    `logger.experiment` is logger specific: TensorBoard exposes a `SummaryWriter` (`add_image`),
+    while wandb exposes a `Run` (no `add_image`, hence `AttributeError` when the TensorBoard API is
+    used directly). Loggers that support images through Lightning implement `log_image`.
+    """
+    if hasattr(logger, "log_image"):  # wandb, comet, neptune, mlflow
+        logger.log_image(key=key, images=[image], step=step)
+    elif hasattr(logger.experiment, "add_image"):  # tensorboard
+        logger.experiment.add_image(key, image, step, dataformats="HWC")
+    else:
+        log.debug("Logger %s cannot log images, skipping %s", type(logger).__name__, key)
+
+
 @rank_zero_only
 def log_hyperparameters(object_dict: Dict[str, Any]) -> None:
     """Controls which config parts are saved by Lightning loggers.
