@@ -6,17 +6,17 @@
 #SBATCH --nodes=1
 #SBATCH --partition=gpu
 #SBATCH --mem=20G
-#SBATCH --gres=gpu:1
+#SBATCH --gres=gpu:v100sxm:2
 #SBATCH --account=cai_nlp
 #SBATCH --mail-user=saaf@zhaw.ch
 #SBATCH --output=/cluster/home/saaf/PHD/Matcha-TTS/logs/%j_%N.out
 #SBATCH --error=/cluster/home/saaf/PHD/Matcha-TTS/logs/%j_%N.err
 #SBATCH --signal=B:SIGUSR1@60
 
-export UV_PROJECT_ENVIRONEMENT='/raid/persistent_scratch/saaf/venvs/phd'
+export UV_PROJECT_ENVIRONMENT='/raid/persistent_scratch/saaf/venvs/phd'
 export UV_LINK_MODE=copy
 
 uv lock
 uv sync --frozen --extra wandb --extra espeak
 
-uv run matcha/train.py experiment=ljspeech +trainer.max_steps=5 trainer=gpu logger=wandb
+uv run matcha/train.py experiment=ljspeech +trainer.max_steps=50000 trainer=gpu logger=wandb test=False
