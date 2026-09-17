@@ -1,0 +1,23 @@
+defaults:
+  - default
+
+# Portable GPU config: nothing here names a vendor or a device index.
+#
+# `accelerator: auto` lets Lightning probe what is actually present. A ROCm build of
+# PyTorch exposes AMD GPUs through the regular `torch.cuda` API, so this resolves to
+# the CUDA accelerator on both NVIDIA and AMD nodes, and falls back to MPS/CPU
+# elsewhere (e.g. a laptop).
+#
+# `devices: auto` uses every GPU visible to the process. Under SLURM that is exactly
+# what `--gres=gpu:N` handed the job, because SLURM sets CUDA_VISIBLE_DEVICES /
+# ROCR_VISIBLE_DEVICES accordingly -- so the job adapts to whatever it was allocated
+# instead of failing when device index 1 does not exist.
+#
+# `strategy: auto` picks DDP when there is more than one device and a single-device
+# strategy otherwise.
+accelerator: auto
+devices: auto
+strategy: auto
+
+# Harmless on a single device; keeps BN statistics consistent once DDP kicks in.
+sync_batchnorm: True

@@ -13,20 +13,16 @@ name = "matcha-tts"
 dynamic = ["version"]
 description = "🍵 Matcha-TTS: A fast TTS architecture with conditional flow matching"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.9,<3.14"
 authors = [{ name = "Shivam Mehta", email = "shivam.mehta25@gmail.com" }]
 classifiers = [
   "License :: OSI Approved :: MIT License",
   "Programming Language :: Python :: 3",
 ]
 dependencies = [
-  # --------- pytorch --------- #
-  "torch>=2.0.0",
-  "torchvision>=0.15.0",
-  # torchaudio ships no dependency metadata at all, so the resolver will happily pick a release
-  # built against a newer torch and the extension fails to load ("Symbol not found:
-  # _torch_library_impl"). Keep it in the same release series as torch, which torchvision pins.
-  "torchaudio>=2.0.0,<2.9",
+  "torch>=2.8.0,<2.9",
+  "torchvision>=0.23.0,<0.24",
+  "torchaudio>=2.8.0,<2.9",
   "lightning>=2.0.0",
   "torchmetrics>=0.11.4",
   # --------- hydra --------- #
@@ -62,6 +58,14 @@ dependencies = [
 # --------- optional loggers --------- #
 # Install with e.g. `uv sync --extra wandb` or `pip install matcha-tts[wandb]`
 [project.optional-dependencies]
+cu128 = ["torch", "torchvision", "torchaudio"]
+rocm = [
+  "torch",
+  "torchvision",
+  "torchaudio",
+  "pytorch-triton-rocm; platform_machine == 'x86_64' and sys_platform == 'linux'",
+]
+
 # espeak-ng shipped as a wheel, for machines where it cannot be installed system-wide
 espeak = ["espeakng-loader"]
 wandb = ["wandb"]
@@ -71,6 +75,34 @@ comet = ["comet-ml"]
 aim = [
   "aim>=3.16.2",
 ] # no lower than 3.16.2, see https://github.com/aimhubio/aim/issues/2550
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-rocm"
+url = "https://download.pytorch.org/whl/rocm6.3"
+explicit = true
+
+[tool.uv.sources]
+torch = [
+  { index = "pytorch-cu128", extra = "cu128" },
+  { index = "pytorch-rocm", extra = "rocm" },
+]
+torchvision = [
+  { index = "pytorch-cu128", extra = "cu128" },
+  { index = "pytorch-rocm", extra = "rocm" },
+]
+torchaudio = [
+  { index = "pytorch-cu128", extra = "cu128" },
+  { index = "pytorch-rocm", extra = "rocm" },
+]
+pytorch-triton-rocm = [{ index = "pytorch-rocm", extra = "rocm" }]
+
+[tool.uv]
+conflicts = [[{ extra = "cu128" }, { extra = "rocm" }]]
 
 [project.urls]
 Homepage = "https://shivammehta25.github.io/Matcha-TTS"

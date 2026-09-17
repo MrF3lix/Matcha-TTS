@@ -6,17 +6,57 @@
 #SBATCH --nodes=1
 #SBATCH --partition=gpu
 #SBATCH --mem=20G
-#SBATCH --gres=gpu:v100sxm:2
+#SBATCH --gres=gpu:w7900:1
 #SBATCH --account=cai_nlp
 #SBATCH --mail-user=saaf@zhaw.ch
 #SBATCH --output=/cluster/home/saaf/PHD/Matcha-TTS/logs/%j_%N.out
 #SBATCH --error=/cluster/home/saaf/PHD/Matcha-TTS/logs/%j_%N.err
 #SBATCH --signal=B:SIGUSR1@60
 
-export UV_PROJECT_ENVIRONMENT='/raid/persistent_scratch/saaf/venvs/phd'
+set -euo pipefail
+
+if command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi -L 2>/dev/null | grep -q '^GPU '; then
+    ACCEL_EXTRA=cu128
+elif [ -e /dev/kfd ] || (command -v rocm-smi >/dev/null 2>&1 && rocm-smi --showid >/dev/null 2>&1); then
+    ACCEL_EXTRA=rocm
+else
+    echo "ERROR: no NVIDIA or AMD GPU found on $(hostname). Refusing to fall back to CPU." >&2
+    exit 1
+fi
+echo "[$(date +%T)] Node $(hostname): detected ${ACCEL_EXTRA} GPUs"
+
+export UV_PROJECT_ENVIRONMENT="/raid/persistent_scratch/saaf/venvs/phd-${ACCEL_EXTRA}"
 export UV_LINK_MODE=copy
+export UV_HTTP_TIMEOUT=900
+
+if [ "${ACCEL_EXTRA}" = "rocm" ]; then
+    ROCM_PINNED=6.3
+    ROCM_NODE=$(cat /opt/rocm/.info/version 2>/dev/null | cut -d. -f1,2 || true)
+    if [ -n "${ROCM_NODE}" ] && [ "${ROCM_NODE}" != "${ROCM_PINNED}" ]; then
+        echo "WARNING: node runs ROCm ${ROCM_NODE} but pyproject.toml pins wheels for ROCm ${ROCM_PINNED}." >&2
+        echo "         If torch cannot see the GPU, point the pytorch-rocm index at rocm${ROCM_NODE}." >&2
+    fi
+
+    export MIOPEN_USER_DB_PATH="/raid/persistent_scratch/saaf/miopen/${SLURM_JOB_ID:-$$}"
+    export MIOPEN_CUSTOM_CACHE_DIR="${MIOPEN_USER_DB_PATH}"
+    mkdir -p "${MIOPEN_USER_DB_PATH}"
+    trap 'rm -rf "${MIOPEN_USER_DB_PATH}"' EXIT
+fi
 
 uv lock
-uv sync --frozen --extra wandb --extra espeak
+uv sync --extra "${ACCEL_EXTRA}" --extra wandb --extra espeak
 
-srun uv run matcha/train.py experiment=ljspeech +trainer.max_steps=50000 trainer.devices=2 trainer=gpu data.num_workers=10 logger=wandb test=False
+uv run python -c "
+import torch
+assert torch.cuda.is_available(), 'torch cannot see a GPU -- wrong wheel variant for this node?'
+print(f'torch {torch.__version__} | hip={torch.version.hip} | cuda={torch.version.cuda} | devices={torch.cuda.device_count()}')
+print('\n'.join(f'  [{i}] {torch.cuda.get_device_name(i)}' for i in range(torch.cuda.device_count())))
+"
+
+srun uv run matcha/train.py \
+    experiment=ljspeech \
+    trainer=auto \
+    +trainer.max_steps=50000 \
+    data.num_workers=10 \
+    logger=wandb \
+    test=False
