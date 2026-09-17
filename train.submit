@@ -43,15 +43,9 @@ if [ "${ACCEL_EXTRA}" = "rocm" ]; then
     trap 'rm -rf "${MIOPEN_USER_DB_PATH}"' EXIT
 fi
 
-UV_VERSION=$(uv --version | awk '{print $2}')
-echo "uv version: ${UV_VERSION}"
-if [ "$(printf '%s\n0.6.0\n' "${UV_VERSION}" | sort -V | head -1)" != "0.6.0" ]; then
-    echo "ERROR: uv ${UV_VERSION} is too old for [tool.uv.conflicts]; need >= 0.6.0." >&2
-    echo "       Run 'uv self update' on the cluster." >&2
-    exit 1
-fi
-
 uv lock
+uv sync --extra "${ACCEL_EXTRA}" --extra wandb --extra espeak
+
 uv run --no-sync scripts/gpu_doctor.py
 
 srun uv run --no-sync matcha/train.py \
