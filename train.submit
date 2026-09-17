@@ -56,7 +56,7 @@ print('\n'.join(f'  [{i}] {torch.cuda.get_device_name(i)}' for i in range(torch.
 srun uv run matcha/train.py \
     experiment=ljspeech \
     trainer=auto \
-    +trainer.max_steps=50000 \
+    +trainer.max_steps=100 \
     data.num_workers=10 \
     logger=wandb \
     test=False
