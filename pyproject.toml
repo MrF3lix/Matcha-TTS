@@ -32,14 +32,14 @@ dependencies = [
   "hydra-colorlog==1.2.0",
   "hydra-optuna-sweeper==1.2.0",
   # --------- others --------- #
-  "rootutils",        # standardizing the project root setup
-  "pre-commit",       # hooks for applying linters on commit
-  "rich",             # beautiful text formatting in terminal
-  "pytest",           # tests
-  "phonemizer",       # phonemization of text
+  "rootutils",             # standardizing the project root setup
+  "pre-commit",            # hooks for applying linters on commit
+  "rich",                  # beautiful text formatting in terminal
+  "pytest",                # tests
+  "phonemizer",            # phonemization of text
   "tensorboard",
   "librosa",
-  "soundfile",        # audio I/O; imported directly by the data module
+  "soundfile",             # audio I/O; imported directly by the data module
   "Cython",
   "numpy",
   "einops",
@@ -49,14 +49,14 @@ dependencies = [
   "matplotlib",
   "pandas",
   "conformer==0.3.2",
-  "diffusers",        # developed using version ==0.25.0
+  "diffusers",             # developed using version ==0.25.0
   "notebook",
   "ipywidgets",
   "gradio==3.43.2",
   "gdown",
   "wget",
   "seaborn",
-  "transformers<5",
+  "transformers>=4.57,<5",
 ]
 
 # --------- optional loggers --------- #
