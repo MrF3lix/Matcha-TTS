@@ -52,11 +52,9 @@ if [ "$(printf '%s\n0.6.0\n' "${UV_VERSION}" | sort -V | head -1)" != "0.6.0" ];
 fi
 
 uv lock
-uv sync --extra "${ACCEL_EXTRA}" --extra wandb --extra espeak
+uv run --no-sync scripts/gpu_doctor.py
 
-uv run scripts/gpu_doctor.py
-
-srun uv run matcha/train.py \
+srun uv run --no-sync matcha/train.py \
     experiment=ljspeech \
     trainer=auto \
     +trainer.max_steps=100 \
