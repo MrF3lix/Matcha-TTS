@@ -1,12 +1,12 @@
 #!/bin/bash
 #SBATCH --time=1440
 #SBATCH --job-name=SynthDiaSG_Matcha_TTS
-#SBATCH --ntasks-per-node=1   
+#SBATCH --ntasks-per-node=2  
 #SBATCH --cpus-per-task=10
 #SBATCH --nodes=1
 #SBATCH --partition=gpu
 #SBATCH --mem=20G
-#SBATCH --gres=gpu:v100sxm:1
+#SBATCH --gres=gpu:v100sxm:12
 #SBATCH --account=cai_nlp
 #SBATCH --mail-user=saaf@zhaw.ch
 #SBATCH --output=/cluster/home/saaf/PHD/Matcha-TTS/logs/%j_%N.out
@@ -51,8 +51,8 @@ uv run --no-sync scripts/gpu_doctor.py
 srun uv run --no-sync matcha/train.py \
     experiment=ljspeech \
     trainer=auto \
-    +trainer.max_steps=100 \
-    trainer.devices=1 \
+    +trainer.max_steps=50000 \
+    trainer.devices=2 \
     data.num_workers=10 \
     logger=wandb \
     test=False
