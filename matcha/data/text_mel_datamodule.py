@@ -1,11 +1,10 @@
 import random
-import warnings
 from pathlib import Path
 from typing import Any, Dict, Optional
 
 import numpy as np
+import soundfile as sf
 import torch
-import torchaudio as ta
 from lightning import LightningDataModule
 from torch.utils.data.dataloader import DataLoader
 
@@ -14,11 +13,19 @@ from matcha.utils.audio import mel_spectrogram
 from matcha.utils.model import fix_len_compatibility, normalize
 from matcha.utils.utils import intersperse
 
-# torchaudio 2.8 warns on every `ta.load()` call that 2.9 will route it through TorchCodec. The
-# dependency pin in pyproject.toml keeps us on 2.8, where the current behaviour still holds, and
-# dataloader workers are re-created every epoch, so the warning is otherwise printed by every
-# worker in every epoch.
-warnings.filterwarnings("ignore", message=".*load_with_torchcodec.*", category=UserWarning)
+def load_audio(filepath):
+    """Read a waveform as (channels, samples) float32 in [-1, 1], plus its sample rate.
+
+    This used to be `torchaudio.load`, but torchaudio 2.9 dropped its own decoders and now
+    routes that call through TorchCodec, which needs system FFmpeg. We cannot simply pin
+    torchaudio back: the ROCm wheel index publishes exactly one version (2.11.0), so the AMD
+    and NVIDIA builds sit on different sides of that change. Reading via soundfile keeps the
+    two identical and drops the FFmpeg requirement entirely.
+
+    Verified bit-identical to `torchaudio.load` on LJSpeech (same shape, dtype and samples).
+    """
+    audio, sr = sf.read(filepath, dtype="float32", always_2d=True)  # (samples, channels)
+    return torch.from_numpy(np.ascontiguousarray(audio.T)), sr
 
 
 def parse_filelist(filelist_path, split_char="|"):
@@ -204,7 +211,7 @@ class TextMelDataset(torch.utils.data.Dataset):
         return durs
 
     def get_mel(self, filepath):
-        audio, sr = ta.load(filepath)
+        audio, sr = load_audio(filepath)
         assert sr == self.sample_rate
         mel = mel_spectrogram(
             audio,

@@ -39,6 +39,8 @@ dependencies = [
   "phonemizer",       # phonemization of text
   "tensorboard",
   "librosa",
+  "soundfile",   # audio I/O; imported directly by the data module
+
   "Cython",
   "numpy",
   "einops",
