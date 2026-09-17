@@ -46,12 +46,7 @@ fi
 uv lock
 uv sync --extra "${ACCEL_EXTRA}" --extra wandb --extra espeak
 
-uv run python -c "
-import torch
-assert torch.cuda.is_available(), 'torch cannot see a GPU -- wrong wheel variant for this node?'
-print(f'torch {torch.__version__} | hip={torch.version.hip} | cuda={torch.version.cuda} | devices={torch.cuda.device_count()}')
-print('\n'.join(f'  [{i}] {torch.cuda.get_device_name(i)}' for i in range(torch.cuda.device_count())))
-"
+uv run scripts/gpu_doctor.py
 
 srun uv run matcha/train.py \
     experiment=ljspeech \
