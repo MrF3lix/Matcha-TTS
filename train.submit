@@ -52,7 +52,7 @@ srun uv run --no-sync matcha/train.py \
     experiment=ljspeech \
     trainer=auto \
     +trainer.max_steps=100 \
-    trainer.devices=2 \
+    trainer.devices=1 \
     data.num_workers=10 \
     logger=wandb \
     test=False
