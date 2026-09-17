@@ -13,7 +13,9 @@ name = "matcha-tts"
 dynamic = ["version"]
 description = "🍵 Matcha-TTS: A fast TTS architecture with conditional flow matching"
 readme = "README.md"
-requires-python = ">=3.9,<3.14"
+# Lower bound: torch 2.11 (the ROCm fork) dropped Python 3.9, and claiming 3.9 makes
+# uv solve for a 3.9 split that cannot exist. Upper bound: no 3.14 wheels yet.
+requires-python = ">=3.10,<3.14"
 authors = [{ name = "Shivam Mehta", email = "shivam.mehta25@gmail.com" }]
 classifiers = [
   "License :: OSI Approved :: MIT License",
