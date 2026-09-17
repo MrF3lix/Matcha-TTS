@@ -6,7 +6,7 @@
 #SBATCH --nodes=1
 #SBATCH --partition=gpu
 #SBATCH --mem=20G
-#SBATCH --gres=gpu:v100sxm:21
+#SBATCH --gres=gpu:v100sxm:1
 #SBATCH --account=cai_nlp
 #SBATCH --mail-user=saaf@zhaw.ch
 #SBATCH --output=/cluster/home/saaf/PHD/Matcha-TTS/logs/%j_%N.out
