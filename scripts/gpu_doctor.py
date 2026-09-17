@@ -84,6 +84,46 @@ def main():
     wheel = "ROCm" if torch.version.hip else ("CUDA" if torch.version.cuda else "CPU-only")
     print("wheel variant :", wheel)
 
+    section("triton")
+    # torch._dynamo imports triton at startup, so a broken one takes down any
+    # `import lightning`. Both `triton` (CUDA) and `triton-rocm` ship the same
+    # top-level triton/ package, so swapping backends in place can leave a mixed
+    # directory that imports but is missing submodules.
+    import importlib.metadata as md
+
+    owners = []
+    for dist in md.distributions():
+        try:
+            files = dist.files or []
+        except Exception:  # noqa: BLE001
+            continue
+        if any(str(f).split("/")[0] == "triton" for f in files):
+            owners.append(f"{dist.metadata['Name']}=={dist.version}")
+    print("distributions owning triton/:", ", ".join(sorted(set(owners))) or "<none>")
+
+    triton_broken = False
+    try:
+        import triton
+
+        print("triton module :", getattr(triton, "__file__", "?"))
+        print("triton version:", getattr(triton, "__version__", "?"))
+        has_language = hasattr(triton, "language")
+        print("triton.language:", has_language)
+        triton_broken = not has_language
+    except ImportError as exc:
+        # Only a problem if torch expects it, which it does on CUDA/ROCm builds.
+        print("triton not importable:", exc)
+        triton_broken = wheel in ("CUDA", "ROCm")
+
+    if triton_broken or len(set(owners)) > 1:
+        print("\nFAIL: the triton install is inconsistent.")
+        if len(set(owners)) > 1:
+            print("  More than one distribution has written into site-packages/triton.")
+        print("  torch._dynamo will raise on `import lightning`. Recreate the venv:")
+        print(f"    rm -rf {sys.prefix}")
+        print("  then re-run the uv sync step.")
+        return 1
+
     if torch.cuda.is_available():
         count = torch.cuda.device_count()
         print(f"\nOK: {count} GPU(s) visible to torch")
