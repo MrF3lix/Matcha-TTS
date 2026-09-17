@@ -15,6 +15,7 @@ hop_length: 256
 win_length: 1024
 f_min: 0
 f_max: 8000
+mel_frontend: hifigan   # HiFi-GAN-style mel; see ljspeech_vocbulwark.yaml for the other
 data_statistics:  # Computed for ljspeech dataset
   mel_mean: -5.536622
   mel_std: 2.116101

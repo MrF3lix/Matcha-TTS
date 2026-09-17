@@ -13,6 +13,11 @@ from matcha.utils.audio import mel_spectrogram
 from matcha.utils.model import fix_len_compatibility, normalize
 from matcha.utils.utils import intersperse
 
+# Upper bound for the Whisper front-end's fixed analysis window. Any value past the longest
+# utterance in the corpus works; it only has to prevent truncation.
+MAX_AUDIO_SECONDS = 30.0
+
+
 def load_audio(filepath):
     """Read a waveform as (channels, samples) float32 in [-1, 1], plus its sample rate.
 
@@ -56,6 +61,7 @@ class TextMelDataModule(LightningDataModule):
         data_statistics,
         seed,
         load_durations,
+        mel_frontend="hifigan",
     ):
         super().__init__()
 
@@ -86,6 +92,7 @@ class TextMelDataModule(LightningDataModule):
             self.hparams.data_statistics,
             self.hparams.seed,
             self.hparams.load_durations,
+            self.hparams.mel_frontend,
         )
         self.validset = TextMelDataset(  # pylint: disable=attribute-defined-outside-init
             self.hparams.valid_filelist_path,
@@ -102,6 +109,7 @@ class TextMelDataModule(LightningDataModule):
             self.hparams.data_statistics,
             self.hparams.seed,
             self.hparams.load_durations,
+            self.hparams.mel_frontend,
         )
 
     def train_dataloader(self):
@@ -154,6 +162,7 @@ class TextMelDataset(torch.utils.data.Dataset):
         data_parameters=None,
         seed=None,
         load_durations=False,
+        mel_frontend="hifigan",
     ):
         self.filepaths_and_text = parse_filelist(filelist_path)
         self.n_spks = n_spks
@@ -167,6 +176,13 @@ class TextMelDataset(torch.utils.data.Dataset):
         self.f_min = f_min
         self.f_max = f_max
         self.load_durations = load_durations
+        self.mel_frontend = mel_frontend
+        # Built lazily: the extractor is created inside each dataloader worker rather than
+        # pickled into it.
+        self._whisper_fe = None
+
+        if mel_frontend not in ("hifigan", "whisper"):
+            raise ValueError(f"unknown mel_frontend {mel_frontend!r}, expected 'hifigan' or 'whisper'")
 
         if data_parameters is not None:
             self.data_parameters = data_parameters
@@ -210,20 +226,60 @@ class TextMelDataset(torch.utils.data.Dataset):
 
         return durs
 
+    def whisper_extractor(self):
+        # The VocBulwark vocoder reads a Whisper-style log-mel, not the HiFi-GAN one, so when
+        # targeting it we must reproduce that front-end exactly. `f_min`/`f_max` play no part:
+        # Whisper's filterbank always spans 0..sample_rate/2.
+        if self._whisper_fe is None:
+            from transformers import WhisperFeatureExtractor  # pylint: disable=import-outside-toplevel
+
+            fe = WhisperFeatureExtractor(
+                sampling_rate=self.sample_rate,
+                n_fft=self.n_fft,
+                feature_size=self.n_mels,
+                hop_length=self.hop_length,
+            )
+            # By default the extractor pads or truncates everything to a fixed 30 s window,
+            # which would corrupt every utterance. Widen it past the longest clip instead.
+            fe.n_samples = int(MAX_AUDIO_SECONDS * self.sample_rate)
+            fe.chunk_length = MAX_AUDIO_SECONDS
+            self._whisper_fe = fe
+        return self._whisper_fe
+
+    def get_whisper_mel(self, audio, sr):
+        import torchaudio.functional as AF  # pylint: disable=import-outside-toplevel
+
+        wav = audio.mean(0)                                   # (channels, samples) -> mono
+        if sr != self.sample_rate:
+            wav = AF.resample(wav, sr, self.sample_rate)      # LJSpeech is 22.05 kHz, target 24 kHz
+
+        # Whisper clamps the noise floor at (peak of *this input* - 8), so the result depends on
+        # what it is handed. Always pass the whole utterance and crop the resulting tensor later
+        # -- cropping the audio first shifts every frame.
+        feats = self.whisper_extractor()(
+            wav.numpy(), sampling_rate=self.sample_rate, padding="longest", return_tensors="pt"
+        )
+        return feats["input_features"].squeeze(0)
+
     def get_mel(self, filepath):
         audio, sr = load_audio(filepath)
-        assert sr == self.sample_rate
-        mel = mel_spectrogram(
-            audio,
-            self.n_fft,
-            self.n_mels,
-            self.sample_rate,
-            self.hop_length,
-            self.win_length,
-            self.f_min,
-            self.f_max,
-            center=False,
-        ).squeeze()
+
+        if self.mel_frontend == "whisper":
+            mel = self.get_whisper_mel(audio, sr)
+        else:
+            assert sr == self.sample_rate
+            mel = mel_spectrogram(
+                audio,
+                self.n_fft,
+                self.n_mels,
+                self.sample_rate,
+                self.hop_length,
+                self.win_length,
+                self.f_min,
+                self.f_max,
+                center=False,
+            ).squeeze()
+
         mel = normalize(mel, self.data_parameters["mel_mean"], self.data_parameters["mel_std"])
         return mel
 

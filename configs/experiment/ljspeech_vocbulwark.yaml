@@ -1,0 +1,14 @@
+# @package _global_
+
+# Matcha trained to drive the VocBulwark `vocoder-large` instead of HiFi-GAN:
+#   python matcha/train.py experiment=ljspeech_vocbulwark
+#
+# Not fine-tunable from an 80-mel checkpoint -- the feature dimension changes, so this
+# trains from scratch.
+
+defaults:
+  - override /data: ljspeech_vocbulwark.yaml
+
+tags: ["ljspeech", "vocbulwark", "96mel"]
+
+run_name: ljspeech_vocbulwark

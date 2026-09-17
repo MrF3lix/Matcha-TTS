@@ -9,7 +9,9 @@ _target_: matcha.models.matcha_tts.MatchaTTS
 n_vocab: 178
 n_spks: ${data.n_spks}
 spk_emb_dim: 64
-n_feats: 80
+n_feats: ${data.n_feats}
+sample_rate: ${data.sample_rate}
+hop_length: ${data.hop_length}
 data_statistics: ${data.data_statistics}
 out_size: null # Must be divisible by 4
 prior_loss: true

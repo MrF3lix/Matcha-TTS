@@ -36,6 +36,8 @@ class MatchaTTS(BaseLightningClass):  # 🍵
         scheduler=None,
         prior_loss=True,
         use_precomputed_durations=False,
+        sample_rate=22050,
+        hop_length=256,
     ):
         super().__init__()
 
@@ -48,6 +50,9 @@ class MatchaTTS(BaseLightningClass):  # 🍵
         self.out_size = out_size
         self.prior_loss = prior_loss
         self.use_precomputed_durations = use_precomputed_durations
+        # Only used to report RTF; defaulted so checkpoints saved before these existed load.
+        self.sample_rate = sample_rate
+        self.hop_length = hop_length
 
         if n_spks > 1:
             self.spk_emb = torch.nn.Embedding(n_spks, spk_emb_dim)
@@ -139,7 +144,7 @@ class MatchaTTS(BaseLightningClass):  # 🍵
         decoder_outputs = decoder_outputs[:, :, :y_max_length]
 
         t = (dt.datetime.now() - t).total_seconds()
-        rtf = t * 22050 / (decoder_outputs.shape[-1] * 256)
+        rtf = t * self.sample_rate / (decoder_outputs.shape[-1] * self.hop_length)
 
         return {
             "encoder_outputs": encoder_outputs,

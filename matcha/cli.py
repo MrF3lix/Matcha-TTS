@@ -77,8 +77,21 @@ def assert_required_models_available(args):
         model_path = save_dir / f"{args.model}.ckpt"
         assert_model_downloaded(model_path, MATCHA_URLS[args.model])
 
-    vocoder_path = save_dir / f"{args.vocoder}"
-    assert_model_downloaded(vocoder_path, VOCODER_URLS[args.vocoder])
+    if args.vocoder == "vocbulwark":
+        # Weights are fetched from the Hub on demand; what must exist locally is the speaker
+        # embedding, because the vocoder cannot run unconditioned.
+        if args.speaker_embedding is None:
+            raise SystemExit(
+                "--vocoder vocbulwark needs --speaker-embedding. Create one with:\n"
+                "  python scripts/compute_speaker_embedding.py --wav-dir data/LJSpeech-1.1/wavs "
+                "--out data/ljspeech_speaker_embedding.pt"
+            )
+        vocoder_path = Path(args.speaker_embedding)
+        if not vocoder_path.is_file():
+            raise SystemExit(f"speaker embedding not found: {vocoder_path}")
+    else:
+        vocoder_path = save_dir / f"{args.vocoder}"
+        assert_model_downloaded(vocoder_path, VOCODER_URLS[args.vocoder])
     return {"matcha": model_path, "vocoder": vocoder_path}
 
 
@@ -96,14 +109,32 @@ def load_vocoder(vocoder_name, checkpoint_path, device):
     vocoder = None
     if vocoder_name in ("hifigan_T2_v1", "hifigan_univ_v1"):
         vocoder = load_hifigan(checkpoint_path, device)
+        denoiser = Denoiser(vocoder, mode="zeros")
+    elif vocoder_name == "vocbulwark":
+        from matcha.vocbulwark import load_vocbulwark  # pylint: disable=import-outside-toplevel
+
+        # `checkpoint_path` carries the speaker embedding here: the generator weights come
+        # from the Hub, but the speaker conditioning is local and must be supplied.
+        vocoder = load_vocbulwark(checkpoint_path, device)
+        # The Denoiser is HiFi-GAN specific (it subtracts the vocoder's response to silence,
+        # assuming that interface), so it is not applied to this one.
+        denoiser = None
     else:
         raise NotImplementedError(
             f"Vocoder {vocoder_name} not implemented! define a load_<<vocoder_name>> method for it"
         )
 
-    denoiser = Denoiser(vocoder, mode="zeros")
     print(f"[+] {vocoder_name} loaded!")
     return vocoder, denoiser
+
+
+def vocoder_sample_rate(vocoder_name):
+    """Output rate of a vocoder. The VocBulwark generator emits 24 kHz, HiFi-GAN 22.05 kHz."""
+    if vocoder_name == "vocbulwark":
+        from matcha.vocbulwark import SAMPLE_RATE  # pylint: disable=import-outside-toplevel
+
+        return SAMPLE_RATE
+    return 22050
 
 
 def load_matcha(model_name, checkpoint_path, device):
@@ -124,12 +155,12 @@ def to_waveform(mel, vocoder, denoiser=None, denoiser_strength=0.00025):
     return audio.cpu().squeeze()
 
 
-def save_to_folder(filename: str, output: dict, folder: str):
+def save_to_folder(filename: str, output: dict, folder: str, sample_rate: int = 22050):
     folder = Path(folder)
     folder.mkdir(exist_ok=True, parents=True)
     plot_spectrogram_to_numpy(np.array(output["mel"].squeeze().float().cpu()), f"{filename}.png")
     np.save(folder / f"{filename}", output["mel"].cpu().numpy())
-    sf.write(folder / f"{filename}.wav", output["waveform"], 22050, "PCM_24")
+    sf.write(folder / f"{filename}.wav", output["waveform"], sample_rate, "PCM_24")
     return folder.resolve() / f"{filename}.wav"
 
 
@@ -189,7 +220,7 @@ def validate_args_for_multispeaker_model(args):
 
 def validate_args_for_single_speaker_model(args):
     if args.vocoder is not None:
-        if args.vocoder != SINGLESPEAKER_MODEL[args.model]["vocoder"]:
+        if args.vocoder != SINGLESPEAKER_MODEL[args.model]["vocoder"] and args.vocoder != "vocbulwark":
             warn_ = f"[-] Using {args.model} model! I would suggest passing --vocoder {SINGLESPEAKER_MODEL[args.model]['vocoder']}"
             warnings.warn(warn_, UserWarning)
     else:
@@ -231,7 +262,14 @@ def cli():
         type=str,
         default=None,
         help="Vocoder to use (default: will use the one suggested with the pretrained model))",
-        choices=VOCODER_URLS.keys(),
+        choices=[*VOCODER_URLS.keys(), "vocbulwark"],
+    )
+    parser.add_argument(
+        "--speaker-embedding",
+        type=str,
+        default=None,
+        help="Path to the speaker embedding .pt required by --vocoder vocbulwark "
+        "(see scripts/compute_speaker_embedding.py)",
     )
     parser.add_argument("--text", type=str, default=None, help="Text to synthesize")
     parser.add_argument("--file", type=str, default=None, help="Text file to synthesize")
@@ -281,6 +319,7 @@ def cli():
 
     model = load_matcha(args.model, paths["matcha"], device)
     vocoder, denoiser = load_vocoder(args.vocoder, paths["vocoder"], device)
+    args.sample_rate = vocoder_sample_rate(args.vocoder)
 
     texts = get_texts(args)
 
@@ -340,7 +379,7 @@ def batched_synthesis(args, device, model, vocoder, denoiser, texts, spk):
 
         output["waveform"] = to_waveform(output["mel"], vocoder, denoiser, args.denoiser_strength)
         t = (dt.datetime.now() - start_t).total_seconds()
-        rtf_w = t * 22050 / (output["waveform"].shape[-1])
+        rtf_w = t * args.sample_rate / (output["waveform"].shape[-1])
         print(f"[🍵-Batch: {i}] Matcha-TTS RTF: {output['rtf']:.4f}")
         print(f"[🍵-Batch: {i}] Matcha-TTS + VOCODER RTF: {rtf_w:.4f}")
         total_rtf.append(output["rtf"])
@@ -349,7 +388,7 @@ def batched_synthesis(args, device, model, vocoder, denoiser, texts, spk):
             base_name = f"utterance_{j:03d}_speaker_{args.spk:03d}" if args.spk is not None else f"utterance_{j:03d}"
             length = output["mel_lengths"][j]
             new_dict = {"mel": output["mel"][j][:, :length], "waveform": output["waveform"][j][: length * 256]}
-            location = save_to_folder(base_name, new_dict, args.output_folder)
+            location = save_to_folder(base_name, new_dict, args.output_folder, args.sample_rate)
             print(f"[🍵-{j}] Waveform saved: {location}")
 
     print("".join(["="] * 100))
@@ -382,13 +421,13 @@ def unbatched_synthesis(args, device, model, vocoder, denoiser, texts, spk):
         output["waveform"] = to_waveform(output["mel"], vocoder, denoiser, args.denoiser_strength)
         # RTF with HiFiGAN
         t = (dt.datetime.now() - start_t).total_seconds()
-        rtf_w = t * 22050 / (output["waveform"].shape[-1])
+        rtf_w = t * args.sample_rate / (output["waveform"].shape[-1])
         print(f"[🍵-{i}] Matcha-TTS RTF: {output['rtf']:.4f}")
         print(f"[🍵-{i}] Matcha-TTS + VOCODER RTF: {rtf_w:.4f}")
         total_rtf.append(output["rtf"])
         total_rtf_w.append(rtf_w)
 
-        location = save_to_folder(base_name, output, args.output_folder)
+        location = save_to_folder(base_name, output, args.output_folder, args.sample_rate)
         print(f"[+] Waveform saved: {location}")
 
     print("".join(["="] * 100))
