@@ -20,9 +20,9 @@ classifiers = [
   "Programming Language :: Python :: 3",
 ]
 dependencies = [
-  "torch>=2.8.0,<2.9",
-  "torchvision>=0.23.0,<0.24",
-  "torchaudio>=2.8.0,<2.9",
+  "torch>=2.8.0,<2.12",
+  "torchvision>=0.23.0,<0.27",
+  "torchaudio>=2.8.0,<2.12",
   "lightning>=2.0.0",
   "torchmetrics>=0.11.4",
   # --------- hydra --------- #
@@ -58,12 +58,12 @@ dependencies = [
 # --------- optional loggers --------- #
 # Install with e.g. `uv sync --extra wandb` or `pip install matcha-tts[wandb]`
 [project.optional-dependencies]
-cu128 = ["torch", "torchvision", "torchaudio"]
+cu128 = ["torch==2.8.0", "torchvision==0.23.0", "torchaudio==2.8.0"]
 rocm = [
-  "torch",
-  "torchvision",
-  "torchaudio",
-  "pytorch-triton-rocm; platform_machine == 'x86_64' and sys_platform == 'linux'",
+  "torch==2.11.0",
+  "torchvision==0.26.0",
+  "torchaudio==2.11.0",
+  "triton-rocm; platform_machine == 'x86_64' and sys_platform == 'linux'",
 ]
 
 # espeak-ng shipped as a wheel, for machines where it cannot be installed system-wide
@@ -83,7 +83,7 @@ explicit = true
 
 [[tool.uv.index]]
 name = "pytorch-rocm"
-url = "https://download.pytorch.org/whl/rocm6.3"
+url = "https://download.pytorch.org/whl/rocm7.2"
 explicit = true
 
 [tool.uv.sources]
@@ -99,7 +99,7 @@ torchaudio = [
   { index = "pytorch-cu128", extra = "cu128" },
   { index = "pytorch-rocm", extra = "rocm" },
 ]
-pytorch-triton-rocm = [{ index = "pytorch-rocm", extra = "rocm" }]
+triton-rocm = [{ index = "pytorch-rocm", extra = "rocm" }]
 
 [tool.uv]
 conflicts = [[{ extra = "cu128" }, { extra = "rocm" }]]

@@ -109,8 +109,12 @@ def main():
         print("    pyproject.toml; compare against the ROCm version printed above.")
         print("  * Unsupported GPU architecture -- try HSA_OVERRIDE_GFX_VERSION.")
     elif wheel == "CUDA" and not nvidia:
-        print("  * A CUDA wheel is installed but this node exposes no /dev/nvidia*.")
-        print("    If the node is AMD, vendor detection in train.submit picked wrong.")
+        print("  * A CUDA wheel is installed on a node with no /dev/nvidia*.")
+        print("    If the node is AMD, the `rocm` extra did not take effect. Check")
+        print("    `uv --version`: uv older than 0.6.0 ignores [tool.uv.conflicts] and")
+        print("    falls back to the first index listed in pyproject.toml (cu128),")
+        print("    whichever --extra you passed. Then verify with:")
+        print("      uv pip list | grep -i torch   # expect +rocm<version>")
     else:
         print("  * Driver too old for this CUDA build, or the devices were not granted")
         print("    to this step (check the visible-device variables above).")
