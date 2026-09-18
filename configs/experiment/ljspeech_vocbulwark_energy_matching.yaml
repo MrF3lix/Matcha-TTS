@@ -1,0 +1,12 @@
+# @package _global_
+
+# ljspeech_vocbulwark with the flow-matching decoder replaced by Energy Matching:
+#   python matcha/train.py experiment=ljspeech_vocbulwark_energy_matching
+
+defaults:
+  - ljspeech_vocbulwark
+  - override /model/cfm: energy_matching.yaml
+
+tags: ["ljspeech", "vocbulwark", "96mel", "energy_matching"]
+
+run_name: ljspeech_vocbulwark_energy_matching

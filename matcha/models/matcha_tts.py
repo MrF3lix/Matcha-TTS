@@ -7,6 +7,7 @@ import torch
 import matcha.utils.monotonic_align as monotonic_align  # pylint: disable=consider-using-from-import
 from matcha import utils
 from matcha.models.baselightningmodule import BaseLightningClass
+from matcha.models.components.energy_matching import EnergyMatching
 from matcha.models.components.flow_matching import CFM
 from matcha.models.components.text_encoder import TextEncoder
 from matcha.utils.model import (
@@ -66,7 +67,9 @@ class MatchaTTS(BaseLightningClass):  # 🍵
             spk_emb_dim,
         )
 
-        self.decoder = CFM(
+        # `cfm.name` selects the decoder objective: CFM (flow matching, default) or EnergyMatching
+        decoder_cls = EnergyMatching if getattr(cfm, "name", "CFM") == "EnergyMatching" else CFM
+        self.decoder = decoder_cls(
             in_channels=2 * encoder.encoder_params.n_feats,
             out_channel=encoder.encoder_params.n_feats,
             cfm_params=cfm,
@@ -239,7 +242,9 @@ class MatchaTTS(BaseLightningClass):  # 🍵
         mu_y = mu_y.transpose(1, 2)
 
         # Compute loss of the decoder
-        diff_loss, _ = self.decoder.compute_loss(x1=y, mask=y_mask, mu=mu_y, spks=spks, cond=cond)
+        # Energy matching switches from phase 1 to phase 2 based on the trainer's global step
+        decoder_kwargs = {"step": self.global_step} if isinstance(self.decoder, EnergyMatching) else {}
+        diff_loss, _ = self.decoder.compute_loss(x1=y, mask=y_mask, mu=mu_y, spks=spks, cond=cond, **decoder_kwargs)
 
         if self.prior_loss:
             prior_loss = torch.sum(0.5 * ((y - mu_y) ** 2 + math.log(2 * math.pi)) * y_mask)

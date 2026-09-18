@@ -1,0 +1,90 @@
+#!/bin/bash
+#SBATCH --time=1440
+#SBATCH --job-name=SynthDiaSG_Matcha_TTS
+#SBATCH --ntasks-per-node=2  
+#SBATCH --cpus-per-task=10
+#SBATCH --nodes=1
+#SBATCH --partition=gpu
+#SBATCH --mem=20G
+#SBATCH --gres=gpu:v100sxm:2
+#SBATCH --account=cai_nlp
+#SBATCH --mail-user=saaf@zhaw.ch
+#SBATCH --output=/cluster/home/saaf/PHD/Matcha-TTS/logs/%j_%N.out
+#SBATCH --error=/cluster/home/saaf/PHD/Matcha-TTS/logs/%j_%N.err
+#SBATCH --signal=SIGUSR1@90
+#SBATCH --open-mode=append
+
+set -euo pipefail
+
+if command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi -L 2>/dev/null | grep -q '^GPU '; then
+    ACCEL_EXTRA=cu128
+elif [ -e /dev/kfd ] || (command -v rocm-smi >/dev/null 2>&1 && rocm-smi --showid >/dev/null 2>&1); then
+    ACCEL_EXTRA=rocm
+else
+    echo "ERROR: no NVIDIA or AMD GPU found on $(hostname). Refusing to fall back to CPU." >&2
+    exit 1
+fi
+echo "[$(date +%T)] Node $(hostname): detected ${ACCEL_EXTRA} GPUs"
+
+export UV_PROJECT_ENVIRONMENT="/raid/persistent_scratch/saaf/venvs/phd-${ACCEL_EXTRA}"
+export UV_LINK_MODE=copy
+export UV_HTTP_TIMEOUT=900
+
+if [ "${ACCEL_EXTRA}" = "rocm" ]; then
+    ROCM_PINNED=7.2
+    ROCM_NODE=$(cat /opt/rocm/.info/version 2>/dev/null | cut -d. -f1,2 || true)
+    if [ -n "${ROCM_NODE}" ] && [ "${ROCM_NODE}" != "${ROCM_PINNED}" ]; then
+        echo "WARNING: node runs ROCm ${ROCM_NODE} but pyproject.toml pins wheels for ROCm ${ROCM_PINNED}." >&2
+        echo "         If torch cannot see the GPU, point the pytorch-rocm index at rocm${ROCM_NODE}." >&2
+    fi
+
+    export MIOPEN_USER_DB_PATH="/raid/persistent_scratch/saaf/miopen/${SLURM_JOB_ID:-$$}"
+    export MIOPEN_CUSTOM_CACHE_DIR="${MIOPEN_USER_DB_PATH}"
+    mkdir -p "${MIOPEN_USER_DB_PATH}"
+    trap 'rm -rf "${MIOPEN_USER_DB_PATH}"' EXIT
+fi
+
+uv lock
+uv sync --extra "${ACCEL_EXTRA}" --extra wandb --extra espeak
+
+# uv run --no-sync scripts/gpu_doctor.py
+
+EXP_NAME="${EXP_NAME:-ljspeech_vocbulwark}"
+RUNS_ROOT="/cluster/home/saaf/PHD/Matcha-TTS/logs/train/${EXP_NAME}/runs"
+mkdir -p "${RUNS_ROOT}"
+POINTER="${RUNS_ROOT}/.active_${SLURM_JOB_ID:-manual}"
+
+if [ -n "${RUN_DIR:-}" ]; then
+    echo "[$(date +%T)] RUN_DIR given, continuing ${RUN_DIR}"
+elif [ -f "${POINTER}" ]; then
+    RUN_DIR="$(cat "${POINTER}")"
+    echo "[$(date +%T)] same job id as before, continuing ${RUN_DIR}"
+else
+    RUN_DIR="${RUNS_ROOT}/$(date +%Y-%m-%d_%H-%M-%S)"
+    echo "${RUN_DIR}" > "${POINTER}"
+    echo "[$(date +%T)] new run directory ${RUN_DIR}"
+fi
+mkdir -p "${RUN_DIR}"
+LAST_CKPT="${RUN_DIR}/checkpoints/last.ckpt"
+
+RESUME=()
+if compgen -G "${RUN_DIR}/hpc_ckpt_*.ckpt" > /dev/null; then
+    echo "[$(date +%T)] requeued: letting Lightning auto-resume from $(ls -t ${RUN_DIR}/hpc_ckpt_*.ckpt | head -1)"
+elif [ -f "${LAST_CKPT}" ]; then
+    RESUME=(ckpt_path="${LAST_CKPT}")
+    echo "[$(date +%T)] resuming from ${LAST_CKPT}"
+else
+    echo "[$(date +%T)] no checkpoint at ${LAST_CKPT}, starting from scratch"
+fi
+
+srun uv run --no-sync matcha/train.py \
+    experiment=ljspeech_vocbulwark_energy_matching \
+    hydra.run.dir="${RUN_DIR}" \
+    ${RESUME[@]+"${RESUME[@]}"} \
+    trainer=auto \
+    +trainer.max_steps=50000 \
+    data.num_workers=10 \
+    logger=wandb \
+    logger.wandb.id="$(basename ${RUN_DIR})" \
+    +logger.wandb.resume=allow \
+    test=False

@@ -1,0 +1,22 @@
+# Energy Matching decoder (Balcerak et al., 2025) -- drop-in replacement for the CFM decoder.
+# Select with `model/cfm=energy_matching` or via an experiment config.
+name: EnergyMatching
+solver: euler            # unused here, kept for parity with the CFM config
+sigma_min: 1e-4          # same interpolant as CFM: x_t = (1 - (1 - sigma_min) t) x_0 + t x_1
+
+# Potential V(x | mu) = output_scale * sum over frames of decoder(x, mu) (decoder has 1 output channel)
+output_scale: 1.0
+tau_star: 1.0            # transport time: t ~ U(0, tau_star) in training, gradient flow for tau_star at sampling
+eps_max: 0.05            # Langevin temperature, target density exp(-V / eps_max)
+ot_coupling: false       # minibatch OT pairing of noise and data (as in the notebooks); pairs cross conditionings
+
+# Phase 2: contrastive term is added once trainer.global_step >= phase1_steps
+phase1_steps: 30000         # train.submit runs 50k steps -> 10k steps of phase 2
+cd_weight: 1.0e-3
+neg_langevin_steps: 30   # extra grad-V evaluations per training step -> phase 2 is ~15x more expensive per step
+neg_langevin_dt: 0.05    # 30 * 0.05 = 1.5: noise-initialised negatives get 1.0 of transport, then 0.5 of Langevin
+trim_alpha: 0.1          # drop the 10% negatives with the highest energy (Langevin outliers)
+clamp_beta: 0.05         # lower clamp on the contrastive term
+
+# Sampling: n_timesteps Euler steps of gradient flow (dt = tau_star / n_timesteps), then Langevin refinement
+sample_langevin_steps: 0 # 0 = deterministic transport only (equivalent to CFM's Euler solver); raise after phase 2
