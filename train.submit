@@ -85,4 +85,6 @@ srun uv run --no-sync matcha/train.py \
     +trainer.max_steps=50000 \
     data.num_workers=10 \
     logger=wandb \
+    logger.wandb.id="$(basename ${RUN_DIR})" \
+    +logger.wandb.resume=allow \
     test=False
