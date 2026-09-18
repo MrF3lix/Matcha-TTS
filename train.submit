@@ -49,7 +49,7 @@ uv sync --extra "${ACCEL_EXTRA}" --extra wandb --extra espeak
 uv run --no-sync scripts/gpu_doctor.py
 
 srun uv run --no-sync matcha/train.py \
-    experiment=ljspeech \
+    experiment=ljspeech_vocbulwark \
     trainer=auto \
     +trainer.max_steps=25000 \
     trainer.devices=2 \

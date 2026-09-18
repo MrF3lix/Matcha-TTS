@@ -9,9 +9,7 @@ audio_samples:
   every_n_epochs: 1
   n_timesteps: 10
 
-  # CPU by default so the vocoder does not take GPU memory away from training. Switch to
-  # "cuda" (ROCm reports as cuda too) if you have headroom and want the logging step faster.
-  vocoder_device: cpu
+  vocoder_device: cuda
 
   # Copy-synthesis of the real mels, logged once as a fixed reference: it is the best the
   # vocoder can sound, so it tells you how much of any remaining gap is the acoustic model.
