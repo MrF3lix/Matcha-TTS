@@ -23,6 +23,21 @@ def log_image(logger, key, image, step):
         log.debug("Logger %s cannot log images, skipping %s", type(logger).__name__, key)
 
 
+def log_audio(logger, key, audio, step, sample_rate):
+    """Log a single 1-D waveform, whichever logger is configured.
+
+    Mirrors `log_image`: wandb exposes `log_audio` on the Lightning logger and expects its
+    optional kwargs as per-item lists, while TensorBoard only has `add_audio` on the
+    underlying `SummaryWriter` and wants the rate as a plain int.
+    """
+    if hasattr(logger, "log_audio"):  # wandb
+        logger.log_audio(key=key, audios=[audio], step=step, sample_rate=[sample_rate])
+    elif hasattr(logger.experiment, "add_audio"):  # tensorboard
+        logger.experiment.add_audio(key, audio, step, sample_rate=sample_rate)
+    else:
+        log.debug("Logger %s cannot log audio, skipping %s", type(logger).__name__, key)
+
+
 @rank_zero_only
 def log_hyperparameters(object_dict: Dict[str, Any]) -> None:
     """Controls which config parts are saved by Lightning loggers.

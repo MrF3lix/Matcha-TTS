@@ -9,28 +9,18 @@ cleaners: [english_cleaners2]
 add_blank: True
 n_spks: 1
 
-# Mel front-end for mlr2000/vocoder-large: a Whisper log-mel on 24 kHz audio.
-# The wavs stay 22.05 kHz on disk and are resampled per item.
 mel_frontend: whisper
 n_fft: 1024
 n_feats: 96
 sample_rate: 24000
 hop_length: 256
 win_length: 1024
-# Unused by the Whisper front-end, which always spans 0..sample_rate/2. Kept so the
-# datamodule signature is satisfied.
+
 f_min: 0
 f_max: 8000
-
-# !! PLACEHOLDER !! Regenerate before training, the values below are the identity:
-#   matcha-data-stats -i ljspeech_vocbulwark.yaml
-# The HiFi-GAN numbers (-5.54 / 2.12) describe a completely different feature space; this
-# one sits near mean +0.25. Wrong statistics here mean `denormalize` hands the vocoder a
-# correctly shaped mel in the wrong space, which sounds broken but is easy to misread as a
-# vocoder fault.
 data_statistics:
-  mel_mean: 0.0
-  mel_std: 1.0
+  mel_mean: 0.16585318744182587
+  mel_std: 0.4276588261127472
 
 seed: ${seed}
 load_durations: false

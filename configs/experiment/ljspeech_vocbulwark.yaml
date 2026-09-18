@@ -8,6 +8,7 @@
 
 defaults:
   - override /data: ljspeech_vocbulwark.yaml
+  - override /callbacks: vocbulwark.yaml
 
 tags: ["ljspeech", "vocbulwark", "96mel"]
 

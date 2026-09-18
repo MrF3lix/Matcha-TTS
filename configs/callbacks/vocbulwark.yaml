@@ -1,0 +1,6 @@
+defaults:
+  - model_checkpoint.yaml
+  - model_summary.yaml
+  - rich_progress_bar.yaml
+  - audio_samples.yaml
+  - _self_

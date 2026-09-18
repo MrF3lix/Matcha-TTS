@@ -1,0 +1,18 @@
+audio_samples:
+  _target_: matcha.callbacks.LogAudioSamples
+
+  # Produced by scripts/compute_speaker_embedding.py. The vocoder is speaker-conditioned and
+  # cannot run without it, so this path is checked when the callback is constructed.
+  speaker_embedding: data/ljspeech_speaker_embedding.pt
+
+  n_samples: 2
+  every_n_epochs: 1
+  n_timesteps: 10
+
+  # CPU by default so the vocoder does not take GPU memory away from training. Switch to
+  # "cuda" (ROCm reports as cuda too) if you have headroom and want the logging step faster.
+  vocoder_device: cpu
+
+  # Copy-synthesis of the real mels, logged once as a fixed reference: it is the best the
+  # vocoder can sound, so it tells you how much of any remaining gap is the acoustic model.
+  log_ground_truth: true
