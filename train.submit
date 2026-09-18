@@ -47,7 +47,7 @@ fi
 uv lock
 uv sync --extra "${ACCEL_EXTRA}" --extra wandb --extra espeak
 
-uv run --no-sync scripts/gpu_doctor.py
+# uv run --no-sync scripts/gpu_doctor.py
 
 EXP_NAME="${EXP_NAME:-ljspeech_vocbulwark}"
 RUNS_ROOT="/cluster/home/saaf/PHD/Matcha-TTS/logs/train/${EXP_NAME}/runs"
@@ -83,7 +83,6 @@ srun uv run --no-sync matcha/train.py \
     ${RESUME[@]+"${RESUME[@]}"} \
     trainer=auto \
     +trainer.max_steps=50000 \
-    trainer.devices=2 \
     data.num_workers=10 \
     logger=wandb \
     test=False
