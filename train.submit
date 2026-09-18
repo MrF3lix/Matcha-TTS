@@ -11,7 +11,8 @@
 #SBATCH --mail-user=saaf@zhaw.ch
 #SBATCH --output=/cluster/home/saaf/PHD/Matcha-TTS/logs/%j_%N.out
 #SBATCH --error=/cluster/home/saaf/PHD/Matcha-TTS/logs/%j_%N.err
-#SBATCH --signal=B:SIGUSR1@60
+#SBATCH --signal=SIGUSR1@90
+#SBATCH --open-mode=append
 
 set -euo pipefail
 
@@ -48,8 +49,38 @@ uv sync --extra "${ACCEL_EXTRA}" --extra wandb --extra espeak
 
 uv run --no-sync scripts/gpu_doctor.py
 
+EXP_NAME="${EXP_NAME:-ljspeech_vocbulwark}"
+RUNS_ROOT="/cluster/home/saaf/PHD/Matcha-TTS/logs/train/${EXP_NAME}/runs"
+mkdir -p "${RUNS_ROOT}"
+POINTER="${RUNS_ROOT}/.active_${SLURM_JOB_ID:-manual}"
+
+if [ -n "${RUN_DIR:-}" ]; then
+    echo "[$(date +%T)] RUN_DIR given, continuing ${RUN_DIR}"
+elif [ -f "${POINTER}" ]; then
+    RUN_DIR="$(cat "${POINTER}")"
+    echo "[$(date +%T)] same job id as before, continuing ${RUN_DIR}"
+else
+    RUN_DIR="${RUNS_ROOT}/$(date +%Y-%m-%d_%H-%M-%S)"
+    echo "${RUN_DIR}" > "${POINTER}"
+    echo "[$(date +%T)] new run directory ${RUN_DIR}"
+fi
+mkdir -p "${RUN_DIR}"
+LAST_CKPT="${RUN_DIR}/checkpoints/last.ckpt"
+
+RESUME=()
+if compgen -G "${RUN_DIR}/hpc_ckpt_*.ckpt" > /dev/null; then
+    echo "[$(date +%T)] requeued: letting Lightning auto-resume from $(ls -t ${RUN_DIR}/hpc_ckpt_*.ckpt | head -1)"
+elif [ -f "${LAST_CKPT}" ]; then
+    RESUME=(ckpt_path="${LAST_CKPT}")
+    echo "[$(date +%T)] resuming from ${LAST_CKPT}"
+else
+    echo "[$(date +%T)] no checkpoint at ${LAST_CKPT}, starting from scratch"
+fi
+
 srun uv run --no-sync matcha/train.py \
     experiment=ljspeech_vocbulwark \
+    hydra.run.dir="${RUN_DIR}" \
+    ${RESUME[@]+"${RESUME[@]}"} \
     trainer=auto \
     +trainer.max_steps=25000 \
     trainer.devices=2 \
