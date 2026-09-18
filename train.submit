@@ -82,7 +82,7 @@ srun uv run --no-sync matcha/train.py \
     hydra.run.dir="${RUN_DIR}" \
     ${RESUME[@]+"${RESUME[@]}"} \
     trainer=auto \
-    +trainer.max_steps=25000 \
+    +trainer.max_steps=50000 \
     trainer.devices=2 \
     data.num_workers=10 \
     logger=wandb \
