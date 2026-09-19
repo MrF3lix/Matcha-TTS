@@ -84,6 +84,10 @@ class EnergyMatching(torch.nn.Module):
         # Same U-Net as the CFM estimator, but with a single output channel. Summed over the
         # (masked) frames it gives the scalar potential V(x | mu, spks).
         self.estimator = Decoder(in_channels=in_channels, out_channels=1, **decoder_params)
+        # A constant offset of V has no effect on grad V (phase 1) and cancels in the pairwise
+        # energy gap (phase 2), so the final bias would never receive a gradient and DDP would
+        # flag it as an unused parameter. Drop it.
+        self.estimator.final_proj.bias = None
 
         # Detached sub-losses of the last `compute_loss` call, handy for logging/debugging.
         self.loss_components = {}
