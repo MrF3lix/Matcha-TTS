@@ -1,0 +1,27 @@
+# @package _global_
+
+# Bernese Swiss German (single speaker, Standard German transcripts read in dialect),
+# character-level text, driving the VocBulwark vocoder:
+#   python matcha/train.py experiment=be_vocbulwark
+#
+# Prerequisites (see README "Train on your own corpus"):
+#   1. scripts/build_filelist.py            -> data/filelists/be/{train,val}.txt
+#   2. matcha-data-stats                    -> mel_mean / mel_std in configs/data/be_vocbulwark.yaml
+#   3. scripts/compute_speaker_embedding.py -> data/be_speaker_embedding.pt
+
+defaults:
+  - override /data: be_vocbulwark.yaml
+  - override /callbacks: vocbulwark.yaml
+
+tags: ["be", "swissgerman", "vocbulwark", "96mel"]
+
+run_name: be_vocbulwark
+
+model:
+  # 178 original symbols + 13 German graphemes appended in matcha/text/symbols.py.
+  n_vocab: 191
+
+callbacks:
+  audio_samples:
+    # Averaged over 50 corpus clips with scripts/compute_speaker_embedding.py --wav-dir.
+    speaker_embedding: data/be_speaker_embedding.pt

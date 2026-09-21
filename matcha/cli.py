@@ -46,10 +46,10 @@ def plot_spectrogram_to_numpy(spectrogram, filename):
     plt.savefig(filename)
 
 
-def process_text(i: int, text: str, device: torch.device):
+def process_text(i: int, text: str, device: torch.device, cleaners=("english_cleaners2",)):
     print(f"[{i}] - Input text: {text}")
     x = torch.tensor(
-        intersperse(text_to_sequence(text, ["english_cleaners2"])[0], 0),
+        intersperse(text_to_sequence(text, list(cleaners))[0], 0),
         dtype=torch.long,
         device=device,
     )[None]
@@ -147,12 +147,17 @@ def load_matcha(model_name, checkpoint_path, device):
     return model
 
 
-def to_waveform(mel, vocoder, denoiser=None, denoiser_strength=0.00025):
-    audio = vocoder(mel).clamp(-1, 1)
+def to_waveform(mel, vocoder, denoiser=None, denoiser_strength=0.00025, spks=None):
+    # HiFi-GAN ignores speakers; VocBulwark with a per-speaker table needs the ids.
+    audio = (vocoder(mel, spks) if _vocoder_takes_spks(vocoder) else vocoder(mel)).clamp(-1, 1)
     if denoiser is not None:
         audio = denoiser(audio.squeeze(), strength=denoiser_strength).cpu().squeeze()
 
     return audio.cpu().squeeze()
+
+
+def _vocoder_takes_spks(vocoder):
+    return getattr(vocoder, "n_speakers", 1) > 1
 
 
 def save_to_folder(filename: str, output: dict, folder: str, sample_rate: int = 22050):
@@ -271,6 +276,14 @@ def cli():
         help="Path to the speaker embedding .pt required by --vocoder vocbulwark "
         "(see scripts/compute_speaker_embedding.py)",
     )
+    parser.add_argument(
+        "--cleaners",
+        type=str,
+        nargs="+",
+        default=["english_cleaners2"],
+        help="Text cleaners, must match the `cleaners` the checkpoint was trained with "
+        "(default: english_cleaners2; use swiss_german_cleaners for the Swiss German models)",
+    )
     parser.add_argument("--text", type=str, default=None, help="Text to synthesize")
     parser.add_argument("--file", type=str, default=None, help="Text file to synthesize")
     parser.add_argument("--spk", type=int, default=None, help="Speaker ID")
@@ -357,7 +370,7 @@ def batched_collate_fn(batch):
 def batched_synthesis(args, device, model, vocoder, denoiser, texts, spk):
     total_rtf = []
     total_rtf_w = []
-    processed_text = [process_text(i, text, "cpu") for i, text in enumerate(texts)]
+    processed_text = [process_text(i, text, "cpu", args.cleaners) for i, text in enumerate(texts)]
     dataloader = torch.utils.data.DataLoader(
         BatchedSynthesisDataset(processed_text),
         batch_size=args.batch_size,
@@ -377,7 +390,9 @@ def batched_synthesis(args, device, model, vocoder, denoiser, texts, spk):
             length_scale=args.speaking_rate,
         )
 
-        output["waveform"] = to_waveform(output["mel"], vocoder, denoiser, args.denoiser_strength)
+        output["waveform"] = to_waveform(
+            output["mel"], vocoder, denoiser, args.denoiser_strength, spks=spk.expand(b) if spk is not None else None
+        )
         t = (dt.datetime.now() - start_t).total_seconds()
         rtf_w = t * args.sample_rate / (output["waveform"].shape[-1])
         print(f"[🍵-Batch: {i}] Matcha-TTS RTF: {output['rtf']:.4f}")
@@ -406,7 +421,7 @@ def unbatched_synthesis(args, device, model, vocoder, denoiser, texts, spk):
 
         print("".join(["="] * 100))
         text = text.strip()
-        text_processed = process_text(i, text, device)
+        text_processed = process_text(i, text, device, args.cleaners)
 
         print(f"[🍵] Whisking Matcha-T(ea)TS for: {i}")
         start_t = dt.datetime.now()
@@ -418,7 +433,7 @@ def unbatched_synthesis(args, device, model, vocoder, denoiser, texts, spk):
             spks=spk,
             length_scale=args.speaking_rate,
         )
-        output["waveform"] = to_waveform(output["mel"], vocoder, denoiser, args.denoiser_strength)
+        output["waveform"] = to_waveform(output["mel"], vocoder, denoiser, args.denoiser_strength, spks=spk)
         # RTF with HiFiGAN
         t = (dt.datetime.now() - start_t).total_seconds()
         rtf_w = t * args.sample_rate / (output["waveform"].shape[-1])

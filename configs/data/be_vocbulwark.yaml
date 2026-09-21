@@ -1,0 +1,41 @@
+_target_: matcha.data.text_mel_datamodule.TextMelDataModule
+name: be_vocbulwark
+
+# Bernese Swiss German read speech: one female speaker, 2700 utterances, 3.35 h, 24 kHz, with
+# Standard German transcripts (the speaker reads them in dialect). Filelists are written by
+#   python scripts/build_filelist.py --metadata data/be/metadata.txt --no-header --audio-col 0 \
+#       --text-col 1 --audio-root data/be/prepared/wav --out-dir data/filelists/be --check-audio
+# and expect the corpus at data/be (a symlink is fine).
+train_filelist_path: data/filelists/be/train.txt
+valid_filelist_path: data/filelists/be/val.txt
+batch_size: 32
+num_workers: 20
+pin_memory: True
+
+# Character-level: no espeak voice for Swiss German, so the model reads graphemes. Numbers are
+# spelled out in German, ß -> ss. Needs the German symbols in matcha/text/symbols.py (n_vocab 191,
+# set in the experiment config).
+cleaners: [swiss_german_cleaners]
+add_blank: True
+
+# One speaker. For a multi-speaker corpus set this to the number of speakers, build the filelist
+# with --speaker-col, and give the audio callback the [n_spks, 768] embedding table.
+n_spks: 1
+
+# Same 96-mel Whisper front-end as ljspeech_vocbulwark: the VocBulwark vocoder is fixed to it.
+mel_frontend: whisper
+n_fft: 1024
+n_feats: 96
+sample_rate: 24000
+hop_length: 256
+win_length: 1024
+f_min: 0
+f_max: 8000
+
+# Corpus mel mean/std, computed with:  uv run matcha-data-stats -i be_vocbulwark.yaml
+data_statistics:
+  mel_mean: 0.10719538480043411
+  mel_std: 0.4596509635448456
+
+seed: ${seed}
+load_durations: false

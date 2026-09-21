@@ -57,6 +57,7 @@ dependencies = [
   "wget",
   "seaborn",
   "transformers>=4.57,<5",
+  "num2words>=0.5.14",
 ]
 
 # --------- optional loggers --------- #

@@ -32,7 +32,8 @@ class LogAudioSamples(Callback):
             for LJSpeech, "hifigan_univ_v1" for multi-speaker). HiFi-GAN weights are downloaded
             to the Matcha data dir on first use, like `matcha-tts` does.
         speaker_embedding: path to the .pt embedding the VocBulwark vocoder requires
-            (see scripts/compute_speaker_embedding.py). Ignored for HiFi-GAN.
+            (see scripts/compute_speaker_embedding.py). For a multi-speaker run this is the
+            [n_spks, 768] table, indexed by the batch's speaker ids. Ignored for HiFi-GAN.
         n_samples: how many utterances from the first validation batch to synthesise.
         every_n_epochs: log every N epochs. Vocoding is not free, so this is not 1 by default.
         n_timesteps: ODE steps for synthesis; 10 matches the mel plots logged alongside.
@@ -108,10 +109,15 @@ class LogAudioSamples(Callback):
                 log.warning("Audio sample logger disabled, vocoder failed to load: %s", exc)
         return self._vocoder
 
-    def _to_waveform(self, mel):
+    def _to_waveform(self, mel, spks=None):
         mel = mel.detach().float().to(self.vocoder_device)
         with torch.no_grad():
-            audio = self._vocoder(mel).clamp(-1, 1)
+            if getattr(self._vocoder, "n_speakers", 1) > 1:
+                if spks is None:
+                    raise ValueError("multi-speaker VocBulwark table needs speaker ids, but the batch has none")
+                audio = self._vocoder(mel, spks.to(self.vocoder_device)).clamp(-1, 1)
+            else:
+                audio = self._vocoder(mel).clamp(-1, 1)
             if self._denoiser is not None:
                 audio = self._denoiser(audio.squeeze(), strength=self.denoiser_strength)
         return audio.squeeze().cpu().numpy()
@@ -136,8 +142,9 @@ class LogAudioSamples(Callback):
                 for i in range(n):
                     mel = batch["y"][i, :, : batch["y_lengths"][i]].unsqueeze(0)
                     mel = denormalize(mel, pl_module.mel_mean, pl_module.mel_std)
+                    spks = batch["spks"][i].unsqueeze(0) if batch["spks"] is not None else None
                     for logger in trainer.loggers:
-                        log_audio(logger, f"audio_original/{i}", self._to_waveform(mel), step, self._sample_rate)
+                        log_audio(logger, f"audio_original/{i}", self._to_waveform(mel, spks), step, self._sample_rate)
                 self._logged_ground_truth = True
 
             for i in range(n):
@@ -148,7 +155,9 @@ class LogAudioSamples(Callback):
                 # `synthesise` already denormalises its "mel" output.
                 output = pl_module.synthesise(x[:, :x_lengths], x_lengths, n_timesteps=self.n_timesteps, spks=spks)
                 for logger in trainer.loggers:
-                    log_audio(logger, f"audio_generated/{i}", self._to_waveform(output["mel"]), step, self._sample_rate)
+                    log_audio(
+                        logger, f"audio_generated/{i}", self._to_waveform(output["mel"], spks), step, self._sample_rate
+                    )
         except Exception as exc:  # noqa: BLE001
             self._disabled = True
             log.warning("Audio sample logger disabled after an error: %s", exc)

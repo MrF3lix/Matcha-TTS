@@ -1,0 +1,12 @@
+# @package _global_
+
+# be_vocbulwark with the flow-matching decoder replaced by Energy Matching:
+#   python matcha/train.py experiment=be_vocbulwark_energy_matching
+
+defaults:
+  - be_vocbulwark
+  - override /model/cfm: energy_matching.yaml
+
+tags: ["be", "swissgerman", "vocbulwark", "96mel", "energy_matching"]
+
+run_name: be_vocbulwark_energy_matching

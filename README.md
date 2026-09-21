@@ -236,6 +236,56 @@ python matcha/train.py experiment=ljspeech trainer.devices=[0,1]
 matcha-tts --text "<INPUT TEXT>" --checkpoint_path <PATH TO CHECKPOINT>
 ```
 
+## Train on your own corpus (e.g. Bernese Swiss German + VocBulwark)
+
+The pipeline above is phonemised English with HiFi-GAN. For a corpus in a language without an
+espeak voice, driving the speaker-conditioned VocBulwark vocoder, the steps are (shown for the
+Bernese corpus, one speaker, `id|text|...` metadata without header, expected at `data/be`):
+
+1. Build the filelists. The script checks that every audio file exists, reads rate and duration,
+   and verifies that every character survives the cleaner. Add `--speaker-col <column>` for a
+   multi-speaker corpus: it then writes `path|speaker_id|text` with ids 0..N-1 plus `speakers.json`.
+
+```bash
+python scripts/build_filelist.py --metadata data/be/metadata.txt --no-header --audio-col 0 --text-col 1 \
+    --audio-root data/be/prepared/wav --out-dir data/filelists/be --check-audio
+```
+
+2. Set `n_spks` in `configs/data/be_vocbulwark.yaml` (the script prints it), compute the corpus mel
+   statistics and paste `mel_mean` / `mel_std` into the same file:
+
+```bash
+matcha-data-stats -i be_vocbulwark.yaml
+```
+
+3. Compute the VocBulwark speaker embedding. One speaker: average over reference clips. Several
+   speakers: `--filelist data/filelists/<corpus>/train.txt` gives an `[n_spks, 768]` table whose
+   row i is speaker i, which the vocoder indexes with Matcha's speaker ids.
+
+```bash
+python scripts/compute_speaker_embedding.py --wav-dir data/be/prepared/wav --n-clips 50 --out data/be_speaker_embedding.pt
+```
+
+4. Train (or `experiment=be_vocbulwark_energy_matching` for the Energy Matching decoder):
+
+```bash
+python matcha/train.py experiment=be_vocbulwark
+```
+
+5. Synthesise. `--cleaners` must match the data config; for a multi-speaker model `--spk` picks the
+   row in both the acoustic model's speaker table and the vocoder's embedding table:
+
+```bash
+matcha-tts --checkpoint_path <CKPT> --vocoder vocbulwark --speaker-embedding data/be_speaker_embedding.pt \
+    --cleaners swiss_german_cleaners --text "Am dritten April waren es 26,9 Prozent."
+```
+
+Text is handled character-level by `swiss_german_cleaners`: NFC, German number expansion via
+num2words (`matcha/text/numbers_de.py`), lowercase, ß -> ss, typographic quotes and dashes folded,
+brackets dropped, no phonemisation. The German graphemes are appended to `matcha/text/symbols.py`
+after the original 178 symbols, so existing checkpoints keep their ids; the experiment config sets
+`n_vocab: 191`.
+
 ## ONNX support
 
 > Special thanks to [@mush42](https://github.com/mush42) for implementing ONNX export and inference support.
