@@ -272,6 +272,11 @@ python scripts/compute_speaker_embedding.py --wav-dir data/be/prepared/wav --n-c
 python matcha/train.py experiment=be_vocbulwark
 ```
 
+   For the standard HiFi-GAN front-end (80 mels, 22.05 kHz; the 24 kHz corpus is resampled on the
+   fly) use `experiment=be` or `experiment=be_energy_matching`. They share the filelists, need no
+   speaker embedding, and vocode audio samples with the universal HiFi-GAN (`hifigan_univ_v1`).
+   `configs/data/be.yaml` carries its own mel statistics, since they depend on the front-end.
+
 5. Synthesise. `--cleaners` must match the data config; for a multi-speaker model `--spk` picks the
    row in both the acoustic model's speaker table and the vocoder's embedding table:
 
