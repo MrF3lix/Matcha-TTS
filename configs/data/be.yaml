@@ -25,8 +25,8 @@ f_max: 8000
 
 # Corpus mel mean/std, computed with:  uv run matcha-data-stats -i be.yaml
 data_statistics:
-  mel_mean: ???
-  mel_std: ???
+  mel_mean: -6.2085089683532715
+  mel_std: 2.858353614807129
 
 seed: ${seed}
 load_durations: false
