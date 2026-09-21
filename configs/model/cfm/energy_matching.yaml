@@ -11,7 +11,7 @@ eps_max: 0.05            # Langevin temperature, target density exp(-V / eps_max
 ot_coupling: false       # minibatch OT pairing of noise and data (as in the notebooks); pairs cross conditionings
 
 # Phase 2: contrastive term is added once trainer.global_step >= phase1_steps
-phase1_steps: 30000         # train.submit runs 50k steps -> 10k steps of phase 2
+phase1_steps: 15000         # train.submit runs 50k steps -> 10k steps of phase 2
 cd_weight: 1.0e-3
 neg_langevin_steps: 30   # extra grad-V evaluations per training step -> phase 2 is ~15x more expensive per step
 neg_langevin_dt: 0.05    # 30 * 0.05 = 1.5: noise-initialised negatives get 1.0 of transport, then 0.5 of Langevin
