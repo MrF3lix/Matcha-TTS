@@ -1,0 +1,16 @@
+# @package _global_
+
+# LJSpeech with the standard HiFi-GAN mel front-end (80 mels, 22.05 kHz) and the flow-matching
+# decoder replaced by Energy Matching:
+#   python matcha/train.py experiment=ljspeech_energy_matching
+#
+# Uses the default callbacks (mel plots only): the LogAudioSamples callback drives the VocBulwark
+# vocoder and does not apply here. Vocode checkpoints with HiFi-GAN via `matcha-tts` instead.
+
+defaults:
+  - ljspeech
+  - override /model/cfm: energy_matching.yaml
+
+tags: ["ljspeech", "hifigan", "80mel", "energy_matching"]
+
+run_name: ljspeech_energy_matching

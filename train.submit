@@ -78,11 +78,11 @@ else
 fi
 
 srun uv run --no-sync matcha/train.py \
-    experiment=ljspeech_vocbulwark \
+    experiment="${EXP_NAME}" \
     hydra.run.dir="${RUN_DIR}" \
     ${RESUME[@]+"${RESUME[@]}"} \
     trainer=auto \
-    +trainer.max_steps=50000 \
+    +trainer.max_steps=25000 \
     data.num_workers=10 \
     logger=wandb \
     logger.wandb.id="$(basename ${RUN_DIR})" \
