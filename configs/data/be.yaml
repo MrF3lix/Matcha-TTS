@@ -1,0 +1,32 @@
+_target_: matcha.data.text_mel_datamodule.TextMelDataModule
+name: be
+
+# Bernese Swiss German read speech (see be_vocbulwark.yaml for the corpus) on the standard
+# HiFi-GAN mel front-end: 80 mels, 22.05 kHz. The corpus wavs are 24 kHz and are resampled on
+# the fly by the data module. Same filelists as be_vocbulwark.
+train_filelist_path: data/filelists/be/train.txt
+valid_filelist_path: data/filelists/be/val.txt
+batch_size: 32
+num_workers: 20
+pin_memory: True
+
+cleaners: [swiss_german_cleaners]
+add_blank: True
+n_spks: 1
+
+mel_frontend: hifigan
+n_fft: 1024
+n_feats: 80
+sample_rate: 22050
+hop_length: 256
+win_length: 1024
+f_min: 0
+f_max: 8000
+
+# Corpus mel mean/std, computed with:  uv run matcha-data-stats -i be.yaml
+data_statistics:
+  mel_mean: ???
+  mel_std: ???
+
+seed: ${seed}
+load_durations: false

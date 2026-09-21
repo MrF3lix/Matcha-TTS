@@ -267,7 +267,12 @@ class TextMelDataset(torch.utils.data.Dataset):
         if self.mel_frontend == "whisper":
             mel = self.get_whisper_mel(audio, sr)
         else:
-            assert sr == self.sample_rate
+            if sr != self.sample_rate:
+                # e.g. 24 kHz corpus wavs for the 22.05 kHz HiFi-GAN front-end. Resampling on
+                # the fly costs a little per item but avoids keeping a second copy of the corpus.
+                import torchaudio.functional as AF  # pylint: disable=import-outside-toplevel
+
+                audio = AF.resample(audio, sr, self.sample_rate)
             mel = mel_spectrogram(
                 audio,
                 self.n_fft,

@@ -1,0 +1,25 @@
+# @package _global_
+
+# Bernese Swiss German (single speaker, Standard German transcripts read in dialect),
+# character-level text, standard HiFi-GAN mel front-end (80 mels, 22.05 kHz):
+#   python matcha/train.py experiment=be
+#
+# Audio samples are vocoded with the universal HiFi-GAN (hifigan_univ_v1): hifigan_T2_v1 was
+# trained on the LJSpeech speaker only. Same filelists as be_vocbulwark, so only steps 1 and 2
+# of the README section apply (no speaker embedding needed).
+
+defaults:
+  - override /data: be.yaml
+  - override /callbacks: hifigan.yaml
+
+tags: ["be", "swissgerman", "hifigan", "80mel"]
+
+run_name: be
+
+model:
+  # 178 original symbols + 13 German graphemes appended in matcha/text/symbols.py.
+  n_vocab: 191
+
+callbacks:
+  audio_samples:
+    vocoder: hifigan_univ_v1

@@ -1,0 +1,12 @@
+# @package _global_
+
+# be (HiFi-GAN front-end) with the flow-matching decoder replaced by Energy Matching:
+#   python matcha/train.py experiment=be_energy_matching
+
+defaults:
+  - be
+  - override /model/cfm: energy_matching.yaml
+
+tags: ["be", "swissgerman", "hifigan", "80mel", "energy_matching"]
+
+run_name: be_energy_matching
