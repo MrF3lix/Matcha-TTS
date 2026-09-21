@@ -4,12 +4,12 @@
 # decoder replaced by Energy Matching:
 #   python matcha/train.py experiment=ljspeech_energy_matching
 #
-# Uses the default callbacks (mel plots only): the LogAudioSamples callback drives the VocBulwark
-# vocoder and does not apply here. Vocode checkpoints with HiFi-GAN via `matcha-tts` instead.
+# Audio samples are vocoded with HiFi-GAN (callbacks/hifigan.yaml).
 
 defaults:
   - ljspeech
   - override /model/cfm: energy_matching.yaml
+  - override /callbacks: hifigan.yaml
 
 tags: ["ljspeech", "hifigan", "80mel", "energy_matching"]
 

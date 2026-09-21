@@ -1,6 +1,10 @@
 audio_samples:
   _target_: matcha.callbacks.LogAudioSamples
 
+  # Which vocoder to drive: vocbulwark (96-mel front-end) or hifigan_T2_v1 / hifigan_univ_v1
+  # (80-mel front-end). See callbacks/hifigan.yaml for the latter.
+  vocoder: vocbulwark
+
   # Produced by scripts/compute_speaker_embedding.py. The vocoder is speaker-conditioned and
   # cannot run without it, so this path is checked when the callback is constructed.
   speaker_embedding: data/ljspeech_speaker_embedding.pt

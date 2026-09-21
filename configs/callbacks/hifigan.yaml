@@ -1,0 +1,13 @@
+# Default callbacks plus audio samples vocoded with HiFi-GAN, for runs on the standard
+# `hifigan` mel front-end (80 mels, 22.05 kHz). The generator weights are downloaded from the
+# Matcha-TTS checkpoint release on first use, like `matcha-tts` does.
+defaults:
+  - model_checkpoint.yaml
+  - model_summary.yaml
+  - rich_progress_bar.yaml
+  - audio_samples.yaml
+  - _self_
+
+audio_samples:
+  vocoder: hifigan_T2_v1
+  speaker_embedding: null   # only VocBulwark needs it
